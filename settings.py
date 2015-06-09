@@ -15,16 +15,6 @@ MANAGERS = ADMINS
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'edgar', 
-        'USER': 'edgar',
-        'PASSWORD': 'Wx3dn^Y7E',
-        'HOST': 'localhost',
-        'PORT': '',                      # Set to empty string for default.
-    }
-}
 
 # Hosts/domain names that are valid for this site; required if DEBUG is False
 # See https://docs.djangoproject.com/en/1.5/ref/settings/#allowed-hosts
@@ -75,8 +65,6 @@ STATIC_URL = '/static/'
 # assumes this directory exists
 DATA_DIR = "%s/pysec/data/" % PROJECT_ROOT
 
-# Make this unique, and don't share it with anybody.
-SECRET_KEY = '!ukvhuf$bet!y+6ielo0)_w7kh50ue6eiv#0jjt#!x8*pv3!%%'
 
 # Python dotted path to the WSGI application used by Django's runserver; added in v1.4
 WSGI_APPLICATION = 'wsgi.application'
@@ -119,9 +107,7 @@ ROOT_URLCONF = 'pysec.urls'
 
 
 TEMPLATE_DIRS = (
-    # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
-    # Always use forward slashes, even on Windows.
-    # Don't forget to use absolute paths, not relative paths.
+    os.path.join(os.path.dirname(__file__), 'templates').replace('\\', '/'),
 )
 
 INSTALLED_APPS = (

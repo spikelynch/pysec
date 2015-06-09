@@ -1,8 +1,6 @@
-{% if items %}
-    <ul>
-    {% for item in items %}
-        <li>{{ item.filename }} {{ item.formname }}  {{ item.date }}</li>
-    {% endfor %}
-{% else %}
-    <p>No items</p>
-{% endif %}
+<p>XBRL endpoint</p>
+
+<form name="search" method="get" action="search">
+  <input name="search" type="text" size="20"></input>
+  <button type="submit">Search</button>
+</form>

@@ -1,0 +1,15 @@
+{% if reports %}
+    <table>
+    {% for report in reports %}
+         <tr>
+     
+          <td>{{ report.name }}</td>
+          <td>{{ report.form }}</td>
+          <td>{{ report.date }}</td>
+          <td><a href="report/{{ report.id}}">[ Download ]</a></td>
+        </tr>
+    {% endfor %}
+    </table>
+{% else %}
+    <p>No index entries found for {{ cik }}</p>
+{% endif %}

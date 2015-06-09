@@ -1,0 +1,8 @@
+{% if reports %}
+    <ul>
+    {% for report in reports %}
+        <li>{{ report.name }} {{ report.formname }}  {{ report.date }}</li>
+    {% endfor %}
+{% else %}
+    <p>No index entries found for {{ cik }}</p>
+{% endif %}
