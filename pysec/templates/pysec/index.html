@@ -1,0 +1,8 @@
+{% if items %}
+    <ul>
+    {% for item in items %}
+        <li>{{ item.filename }} {{ item.formname }}  {{ item.date }}</li>
+    {% endfor %}
+{% else %}
+    <p>No index</p>
+{% endif %}

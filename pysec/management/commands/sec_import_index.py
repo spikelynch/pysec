@@ -20,17 +20,21 @@ def get_filing_list(year,qtr):
     fn='%s/company_%d_%d.zip' % (DATA_DIR, year,qtr)
 
     if not os.path.exists(fn):
+        print "Downloading %s" % fn
         compressed_data=urllib.urlopen(url).read()
         fileout=file(fn,'w')
         fileout.write(compressed_data)
         fileout.close()
+        
     
     # Extract the compressed file
+    print "Extracting %s" % fn
     zip=ZipFile(fn)
     zdata=zip.read('company.idx')
     zdata = removeNonAscii(zdata)
-    
+
     # Parse the fixed-length fields
+    print "Parsing %s" % fn
     result=[]
     for r in zdata.split('\n')[10:]:
         date = r[86:98].strip()
