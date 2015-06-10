@@ -27,7 +27,6 @@ To get any XBRL term:
 
 x.GetFactValue(XMBL TAG, "Duration" or "Instant" (depending on if it's a year-long or snapshot value))
 
-
 For more basic usage, see example.py
 
 For an example of generating a CSV of a list of companies, see management/commands/xbrl_to_csv.py

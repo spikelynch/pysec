@@ -1,0 +1,22 @@
+<h1>Report</h1>
+
+{% if errmsg %}
+<p>Error: {{ errmsg }}</p>
+{% else %}
+
+<table>
+  <tr>
+    <td>Company</td>
+    <td>{{ report.name }} {{ report.cik}}</td>
+  </tr>
+  <tr>
+    <td>Report</td>
+    <td>{{ report.form }}</td>
+  </tr>
+  <tr>
+    <td>Date</td>
+    <td>{{ report.date }} {{ report.quarter }}</td>
+  </tr>
+</table>
+
+{% endif %}
