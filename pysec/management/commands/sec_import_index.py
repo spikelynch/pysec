@@ -58,9 +58,10 @@ class Command(NoArgsCommand):
     
     def handle_noargs(self, **options):
 
-        for year in range(2013,2014):
-            for qtr in range(1,2):        
+        for year in range(2012,2014):
+            for qtr in range(1,5):        
                 quarter = "%s%s" % (year,qtr)
+                print "Downloading index for %s %s" % ( year, qtr )
                 Index.objects.filter(quarter=quarter).delete()
                 objs = get_filing_list(year,qtr)
                 for obj in objs:

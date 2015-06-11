@@ -23,5 +23,8 @@ urlpatterns = [
     url(r'^$',                views.home,    name='home'),
     url(r'^search'      ,     views.search,  name='search'),
     url(r'^company/([0-9]+)', views.company, name='company'),
-    url(r'^report/([0-9]+)',  views.report,  name='report')
+    # report/CIK/YYYYQ/FORM
+    url(r'^report/([0-9]+)/([0-9]{5})/(.*)\.xml$',  views.report_xml,  name='report'),
+    url(r'^report/([0-9]+)/([0-9]{5})/(.*)$',  views.report_html,  name='report')
+#    url(r'^companies/',       views.companies, name='companies')
 ]

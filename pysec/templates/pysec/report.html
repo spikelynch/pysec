@@ -19,4 +19,19 @@
   </tr>
 </table>
 
+{% if rows %}
+
+<table>
+  {% for row in rows %}
+  <tr>
+    {% for column in row %}
+    <td>{{ column }}</td>
+    {% endfor %}
+  </tr>
+  {% endfor %}
+</table>
+
+{% endif %}
+
+
 {% endif %}

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<companies>
+{% for c in companies %}
+<company cik="{{ c.cik }}">{{ c.name }}</company>
+{% endfor %}
+</companies>

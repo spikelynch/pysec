@@ -1,15 +1,24 @@
 {% if reports %}
+    <p>Reports for companies matching '{{ search_text }}'</p>
     <table>
+      <tr>
+        <th>Company</th>
+        <th>CIK</th>
+        <th>Form</th>
+        <th>Year/Quarter</th>
+        <th></th>
+      </tr>
     {% for report in reports %}
          <tr>
      
           <td>{{ report.name }}</td>
+          <td>{{ report.cik }}</id> 
           <td>{{ report.form }}</td>
-          <td>{{ report.date }}</td>
-          <td><a href="report/{{ report.id}}">[ Download ]</a></td>
+          <td>{{ report.quarter }}</td>
+          <td><a href="report/{{ report.cik }}/{{ report.quarter }}/{{ report.form }}">report</a></td>
         </tr>
     {% endfor %}
     </table>
 {% else %}
-    <p>No index entries found for {{ cik }}</p>
+    <p>No company names matched '{{ search_text }}'</p>
 {% endif %}
