@@ -8,6 +8,23 @@ from django.shortcuts import render
 
 from pysec.models import Index
 
+from lxml.html.soupparser import unescape
+
+#TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
+
+# TAXRECELTS are the us-gaap elements for the tax reconciliation fields
+
+TAXRECELTS = [
+    'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
+    'IncomeTaxReconciliationStateAndLocalIncomeTaxes',
+    'IncomeTaxReconciliationForeignIncomeTaxRateDifferential',
+    'IncomeTaxReconciliationTaxCreditsResearch',
+    'IncomeTaxReconciliationDeductionsQualifiedProductionActivities',
+    'IncomeTaxReconciliationOtherReconcilingItems',
+    'IncomeTaxExpenseBenefit',
+    'EffectiveIncomeTaxRateContinuingOperations'
+    ]
+
 
 
 def home(request):
@@ -35,21 +52,7 @@ def company(request, company):
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
 
 
-
-
-
-
-def report_html(request, cik, quarter, form):
-    values = report(request, 'html', cik, quarter, form)
-    return render(request, 'pysec/report.html', values)
-
-def report_xml(request, cik, quarter, form):
-    values = report(request, 'xml', cik, quarter, form)
-    return render(request, 'pysec/report.xml', values, content_type='application/xml')
-
-# report returns a dict which can be fed to either the xml or html template
-
-def report(request, fmt, cik, quarter, form):
+def report(request, cik, quarter, form):
     errmsg = None
     report = None
     rows = None
@@ -63,10 +66,39 @@ def report(request, fmt, cik, quarter, form):
         errmsg = "Unknown error"
     if report:
         rows = get_report(report)
-    return { 'report': report, 'rows': rows, 'error': errmsg }
+    values = { 'report': report, 'rows': rows, 'error': errmsg }
+    return render(request, 'pysec/report.html', values)
 
 
+def reconciliation(request, cik, quarter):
+    values = {}
+    try:
+        report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
+        if report: 
+            rec = get_reconciliation(report)
+            values = { 'report': report, 'rec': rec }
+        else:
+            values = { 'report': None, 'rec': None, 'error': "10-K not found for %s" % cik }
+    except:
+        values = { 'report': None, 'rec': None, 'error': "10-K not found for %s" % cik }
+        raise
+    return render(request, 'pysec/reconciliation.html', values)
 
+
+def reports(request, cik, form):
+    values = { 'cik': cik, 'reports':[] }
+    print "cik = %s, form = %s" % ( cik, form )
+    reports = Index.objects.filter(cik=cik, form=form)
+    if not reports:
+        values['error'] = "No reports found for %s" % cik
+    for report in reports:
+        rows = get_report(report)
+        if rows:
+            if not 'name' in values:
+                values['name'] = report.name
+            values['reports'].append({ 'quarter': report.quarter,'rows': rows } )
+    return render(request, 'pysec/reports.xml', values, content_type='application/xml')
+        
 
 
 def get_report(report):
@@ -78,8 +110,29 @@ def get_report(report):
             rows.append( [ f, xbrl.fields[f] ] )
         return rows
     else:
-        return [ [ 'The report was not parsed', 'Boo' ] ]
+        return None
     
+# Try to fishe out the reconciliation text table
 
+def get_reconciliation_daggy(report):
+    report.download()
+    xbrl = report.xbrl()
+    if xbrl:
+        rec = xbrl.getNode(TAXRECELT)
+        text = rec.text
+        return text
+    else:
+        return None
 
+def get_reconciliation(report):
+    report.download()
+    xbrl = report.xbrl()
+    table = []
+    for y in range(1, 4):
+        if xbrl.loadYear(y):
+            values = {}
+            for elt in TAXRECELTS:
+                values[elt] = xbrl.GetFactValue('us-gaap:' + elt, 'Duration')
+            table.append(values)
+    return table
 

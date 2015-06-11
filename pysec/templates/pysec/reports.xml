@@ -1,9 +1,13 @@
 <?xml version="1.0"?>
 <reports company="{{ name }}" cik="{{ cik }}">
+  {% if error %}
+  <error>{{ error }}</error>
+  {% endif %}
   {% for report in reports %}
   <report quarter="{{ report.quarter }}">
     {% for row in report.rows %}
-      <{{ row.0 }}>{{ row.1 }}></{{ row.0 }}>
-      {% endfor %}
+      <{{ row.0 }}>{{ row.1 }}</{{ row.0 }}>
+    {% endfor %}
   </report>
+  {% endfor %}
 </reports>
