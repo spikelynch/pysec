@@ -27,12 +27,17 @@ def search(request):
 
 def companies(request):
     companies = Index.objects.filter(form__contains='10-K').values('name', 'cik').distinct()
-    return render(request, 'pysec/companies.xml', { 'companies', companies }, 'application/xml')
+    return render(request, 'pysec/companies.xml', { 'companies': companies }, content_type='application/xml')
 
 
 def company(request, company):
     reports = Index.objects.filter(cik=company)
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
+
+
+
+
+
 
 def report_html(request, cik, quarter, form):
     values = report(request, 'html', cik, quarter, form)

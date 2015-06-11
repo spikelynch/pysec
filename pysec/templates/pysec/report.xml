@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
-<quarter company="{{ report.name }}" cik="{{ report.cik }}" quarter="{{ report.quarter }}">
-  {% for row in rows %}
-  <{{ row.0 }}>{{ row.1 }}></{{ row.0 }}>
-  {% endfor %}
-</quarter>
+<reports company="{{ name }}" cik="{{ cik }}">
+  {% for report in reports %}
+  <report quarter="{{ report.quarter }}">
+    {% for row in report.rows %}
+      <{{ row.0 }}>{{ row.1 }}></{{ row.0 }}>
+      {% endfor %}
+  </report>
+</reports>
