@@ -1,5 +1,6 @@
 # views for edgar browser
 
+import re
 from django.http import HttpResponse
 from django.template.loader import get_template
 from django.template import Context
@@ -14,18 +15,18 @@ from lxml.html.soupparser import unescape
 
 # TAXRECELTS are the us-gaap elements for the tax reconciliation fields
 
-TAXRECELTS = [
-    'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
-    'IncomeTaxReconciliationStateAndLocalIncomeTaxes',
-    'IncomeTaxReconciliationForeignIncomeTaxRateDifferential',
-    'IncomeTaxReconciliationTaxCreditsResearch',
-    'IncomeTaxReconciliationDeductionsQualifiedProductionActivities',
-    'IncomeTaxReconciliationOtherReconcilingItems',
-    'IncomeTaxExpenseBenefit',
-    'EffectiveIncomeTaxRateContinuingOperations'
-    ]
+TAXRECELTS = {
+    'Computed expected tax': 'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
+    'State taxes, net of fed effect': 'IncomeTaxReconciliationStateAndLocalIncomeTaxes',
+    'Indef. invested foreign earnings': 'IncomeTaxReconciliationForeignIncomeTaxRateDifferential',
+    'R&D credit, net': 'IncomeTaxReconciliationTaxCreditsResearch',
+    'Domestic Production Deduction': 'IncomeTaxReconciliationDeductionsQualifiedProductionActivities',
+    'Other': 'IncomeTaxReconciliationOtherReconcilingItems',
+    'Provision for income taxes': 'IncomeTaxExpenseBenefit',
+    'Effective tax rate': 'EffectiveIncomeTaxRateContinuingOperations'
+    }
 
-
+XBRL_NS = "http://www.xbrl.org/2003/instance"
 
 def home(request):
     return render(request, 'pysec/home.html', {})
@@ -76,11 +77,11 @@ def reconciliation(request, cik, quarter):
         report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
         if report: 
             rec = get_reconciliation(report)
-            values = { 'report': report, 'rec': rec }
+            values = { 'report': report, 'table': rec }
         else:
-            values = { 'report': None, 'rec': None, 'error': "10-K not found for %s" % cik }
+            values = { 'report': None, 'table': None, 'error': "10-K not found for %s" % cik }
     except:
-        values = { 'report': None, 'rec': None, 'error': "10-K not found for %s" % cik }
+        values = { 'report': None, 'table': None, 'error': "10-K not found for %s" % cik }
         raise
     return render(request, 'pysec/reconciliation.html', values)
 
@@ -112,7 +113,7 @@ def get_report(report):
     else:
         return None
     
-# Try to fishe out the reconciliation text table
+# Try to fish out the reconciliation text table
 
 def get_reconciliation_daggy(report):
     report.download()
@@ -124,15 +125,90 @@ def get_reconciliation_daggy(report):
     else:
         return None
 
-def get_reconciliation(report):
+def get_reconciliation_getfactvalue(report):
     report.download()
     xbrl = report.xbrl()
     table = []
     for y in range(1, 4):
         if xbrl.loadYear(y):
             values = {}
-            for elt in TAXRECELTS:
+            for label, elt in TAXRECELTS.items():
                 values[elt] = xbrl.GetFactValue('us-gaap:' + elt, 'Duration')
             table.append(values)
     return table
 
+
+def get_reconciliation(report):
+    report.download()
+    xbrl = report.xbrl()
+    table = {}
+    dates = get_dates(xbrl)
+    print "Context to dates lookup: "
+    print dates
+    for label, elt in TAXRECELTS.items():
+        xpath = '//us-gaap:' + elt
+        ves = xbrl.getNodeList('//us-gaap:' + elt)
+        table[label] = {}
+        for ve in ves:
+            contextref = ve.get('contextRef')
+            value = ve.text
+            if contextref in dates:
+                date = dates[contextref]
+            else:
+                date = 'U'
+            if date in table[label]:
+                print "Warning, duplicate date " + date + " for " + elt
+            table[label][date] = value
+    print table
+    return table
+
+
+def get_dates(xbrl):
+    contexts = [ el for el in xbrl.oInstance.iter("{%s}context" % XBRL_NS) ]
+    dates    = {}
+    dre = re.compile('[0-9]+-[0-9]+-[0-9]')
+    for c in contexts:
+        print c
+        cref = c.get('id')
+        for cc in c.iter('{%s}period' % XBRL_NS):
+            dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
+    return dates
+
+
+
+# doing my own version of GetFactValue because the context detection
+# stuff in xbrl.py isn't working
+
+# def (x, ):
+                
+#         factValue = None
+            
+#         if ConceptPeriodType == "Instant":
+#             ContextReference = self.fields['ContextForInstants']
+#         elif ConceptPeriodType == "Duration":
+#             ContextReference = self.fields['ContextForDurations']
+#         else:
+#             #An error occured
+#             return "CONTEXT ERROR"
+        
+#         if not ContextReference:
+#             return None
+
+
+#         oNode = self.getNode("//" + SeekConcept + "[@contextRef='" + ContextReference + "']")
+#         if oNode is not None:                    
+#             factValue = oNode.text
+#             if 'nil' in oNode.keys() and oNode.get('nil')=='true':
+#                 factValue=0
+#                 #set the value to ZERO if it is nil
+#             #if type(factValue)==str:
+#             try:
+#                 factValue = float(factValue)
+#             except:
+#                 print 'couldnt convert %s=%s to string' % (SeekConcept,factValue)
+#                 factValue = None
+#                 pass
+            
+#         return factValue   
+                    
+        

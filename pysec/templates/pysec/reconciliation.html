@@ -15,17 +15,17 @@
 </table>
 
 <table>
-  {% for row in rec %}
-  <tr><td>---</td></tr>
-    {% for field in row %}
-    <tr>
-      <td>{{ field }}</td>
-      <td>{{ row.field }}</td>
-    </tr>
+  {% for field, row in table.items %}
+  <tr>
+    <td><b>{{ field }}</b></td>
+    {% for date, value in row.items %}
+    <td>{{ date }}</td><td align="right">{{ value }}</td>
     {% endfor %}
   </tr>
   {% endfor %}
 </table>
+
+{{ table }}
   
 
 {% else %}
