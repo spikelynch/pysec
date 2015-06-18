@@ -1,42 +1,18 @@
 <?xml version="1.0"?>
-<reconciliation company="{{ report.name }}" cik="{{ report.cik }}">
+<report company="{{ report.name }}" cik="{{ report.cik }}" form="{{ report.form }}">
   {% if error %}
   <error>{{ error }}</error>
   {% endif %}
-  {% for report in reports %}
-  <report quarter="{{ report.quarter }}">
-    {% for row in report.rows %}
-      <{{ row.0 }}>{{ row.1 }}</{{ row.0 }}>
+  {% for date, row in table %}
+  <period date="{{ date }}">
+    {% for field, value in row  %}
+        {% if value %}
+        <value id="{{field}}">{{ value }}</value>
+        {% endif %}
     {% endfor %}
-  </report>
+  </period>
   {% endfor %}
-</reports>
+</report>
 
 
 
-{% if repdort %}
-<table>
-  <tr>
-    <td>Company</td>
-    <td>{{ report.name }} {{ report.cik}}</td>
-  </tr>
-  <tr>
-    <td>Report</td>
-    <td>{{ report.form }}</td>
-  </tr>
-  <tr>
-    <td>Date</td>
-    <td>{{ report.date }} {{ report.quarter }}</td>
-  </tr>
-</table>
-
-<p> starts here:</p>
-
-<div>
-  {% autoescape off %}
-  {{ rec }}
-  {% endautoescape %}
-</div>
-{% else %}
-<p>Error: {{ error }}</p>
-{% endif %}

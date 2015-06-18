@@ -14,18 +14,25 @@
   </tr>
 </table>
 
+
 <table>
-  {% for field, row in table.items %}
+  <tr>
+    <td>&nbsp;</td>
+    {% for date in dates %}
+    <td><b>{{ date }}</b></td>
+    {% endfor %}
+  </tr>
+  {% for field, row in table %}
   <tr>
     <td><b>{{ field }}</b></td>
-    {% for date, value in row.items %}
-    <td>{{ date }}</td><td align="right">{{ value }}</td>
+    {% for value in row %}
+    <td align="right">
+      {{ value }}
+    </td>
     {% endfor %}
   </tr>
   {% endfor %}
 </table>
-
-{{ table }}
   
 
 {% else %}

@@ -1,6 +1,11 @@
-# views for edgar browser
+"""
+views.py
 
-import re
+Django views module for the pysec endpoint
+
+
+"""
+
 from django.http import HttpResponse
 from django.template.loader import get_template
 from django.template import Context
@@ -10,6 +15,8 @@ from django.shortcuts import render
 from pysec.models import Index
 
 from lxml.html.soupparser import unescape
+
+from pysec.reports import extract_report
 
 #TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
 
@@ -26,12 +33,24 @@ TAXRECELTS = {
     'Effective tax rate': 'EffectiveIncomeTaxRateContinuingOperations'
     }
 
-XBRL_NS = "http://www.xbrl.org/2003/instance"
+TAXFIELDS = [
+    'Computed expected tax',
+    'State taxes, net of fed effect',
+    'Indef. invested foreign earnings',
+    'R&D credit, net',
+    'Domestic Production Deduction',
+    'Other',
+    'Provision for income taxes',
+    'Effective tax rate'
+    ]
+
 
 def home(request):
+    """Render and return the home page."""
     return render(request, 'pysec/home.html', {})
 
 def search(request):
+    """Look reports up by company name and return list."""
     search_text = request.GET.get('search', '')
     t = get_template('pysec/search.html')
     if search_text:
@@ -44,16 +63,31 @@ def search(request):
 
 
 def companies(request):
+    """Look up companies with 10-K forms by their CIK."""
     companies = Index.objects.filter(form__contains='10-K').values('name', 'cik').distinct()
     return render(request, 'pysec/companies.xml', { 'companies': companies }, content_type='application/xml')
 
 
 def company(request, company):
+    """Show a page for an individual company."""
     reports = Index.objects.filter(cik=company)
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
 
 
 def report(request, cik, quarter, form):
+    """
+    Return an HTML version of a single form.
+
+    Args:
+        request (HTTPRequest): the Django request
+        cik (Str): the company CIK number
+        quarter (Str): the year and quarter as YYYYQ
+        form (Str): the form to return (eg 10-K)
+
+    Returns:
+        HTTPResponse
+
+    """
     errmsg = None
     report = None
     rows = None
@@ -71,22 +105,95 @@ def report(request, cik, quarter, form):
     return render(request, 'pysec/report.html', values)
 
 
+
+
 def reconciliation(request, cik, quarter):
-    values = {}
+    """
+    Returns the HTML rendered for a tax reconciliation report
+
+    Args:
+        request (HTTPResquest): the Django request
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        HTTPResponse
+
+    TODO: make some template tags which give readable versions of the
+    dollar amounts ("677000000" -> "$677,000,000" or "$M677") and 
+    percentages ("0.252" -> "25,2%")
+
+    """
+    values = { 'report': None }
     try:
         report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
         if report: 
-            rec = get_reconciliation(report)
-            values = { 'report': report, 'table': rec }
+            dates, dicttable = extract_report(report, TAXRECELTS, 'dates')
+            table =  [ ( field, dicttable[field] ) for field in TAXFIELDS ]
+            values['report'] = report
+            values['table'] = table
+            values['dates'] = dates
+            values['fields'] = TAXFIELDS
         else:
-            values = { 'report': None, 'table': None, 'error': "10-K not found for %s" % cik }
+            values['error'] = "Report extraction failed for %s" % cik
     except:
-        values = { 'report': None, 'table': None, 'error': "10-K not found for %s" % cik }
+        values['error'] = "10-K not found for %s" % cik
         raise
     return render(request, 'pysec/reconciliation.html', values)
 
 
+
+
+def reconciliation_xml(request, cik, quarter):
+    """
+    Returns the XML rendered for a tax reconciliation report
+
+    Args:
+        request (HTTPResquest): the Django request
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        Httpresponse
+ 
+    """
+    
+    values = { 'report': None }
+    try:
+        report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
+        if report: 
+            dates, dicttable = extract_report(report, TAXRECELTS, 'fields')
+            print "dicttable"
+            print dicttable
+            # Note: zipping in the TAXFIELDS so that they are available in
+            # the template at the element level
+            staxfields = sorted(TAXFIELDS)
+            table = [ ( date, zip(staxfields, dicttable[date]) ) for date in dates ] 
+            values['report'] = report
+            values['table'] = table
+            values['dates'] = dates
+            values['fields'] = TAXFIELDS
+        else:
+            values['error'] = "Report extraction failed for %s" % cik
+    except:
+        values['error'] = "10-K not found for %s" % cik
+        raise
+    return render(request, 'pysec/reconciliation.xml', values, content_type='application/xml')
+
+
 def reports(request, cik, form):
+    """
+    Returns the HTML rendered for a list of reports
+
+    Args:
+        request (HTTPResquest): the Django request
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        HTTPResponse
+
+    """
     values = { 'cik': cik, 'reports':[] }
     print "cik = %s, form = %s" % ( cik, form )
     reports = Index.objects.filter(cik=cik, form=form)
@@ -103,6 +210,16 @@ def reports(request, cik, form):
 
 
 def get_report(report):
+    """
+    Fetch the report from the xblr interface and build a simple table
+
+    Args:
+        report (Index): the report's index record from the database
+
+    Returns:
+        [ [ field, values ] ]
+    """
+    
     report.download()
     xbrl = report.xbrl()
     if xbrl:
@@ -113,102 +230,3 @@ def get_report(report):
     else:
         return None
     
-# Try to fish out the reconciliation text table
-
-def get_reconciliation_daggy(report):
-    report.download()
-    xbrl = report.xbrl()
-    if xbrl:
-        rec = xbrl.getNode(TAXRECELT)
-        text = rec.text
-        return text
-    else:
-        return None
-
-def get_reconciliation_getfactvalue(report):
-    report.download()
-    xbrl = report.xbrl()
-    table = []
-    for y in range(1, 4):
-        if xbrl.loadYear(y):
-            values = {}
-            for label, elt in TAXRECELTS.items():
-                values[elt] = xbrl.GetFactValue('us-gaap:' + elt, 'Duration')
-            table.append(values)
-    return table
-
-
-def get_reconciliation(report):
-    report.download()
-    xbrl = report.xbrl()
-    table = {}
-    dates = get_dates(xbrl)
-    print "Context to dates lookup: "
-    print dates
-    for label, elt in TAXRECELTS.items():
-        xpath = '//us-gaap:' + elt
-        ves = xbrl.getNodeList('//us-gaap:' + elt)
-        table[label] = {}
-        for ve in ves:
-            contextref = ve.get('contextRef')
-            value = ve.text
-            if contextref in dates:
-                date = dates[contextref]
-            else:
-                date = 'U'
-            if date in table[label]:
-                print "Warning, duplicate date " + date + " for " + elt
-            table[label][date] = value
-    print table
-    return table
-
-
-def get_dates(xbrl):
-    contexts = [ el for el in xbrl.oInstance.iter("{%s}context" % XBRL_NS) ]
-    dates    = {}
-    dre = re.compile('[0-9]+-[0-9]+-[0-9]')
-    for c in contexts:
-        print c
-        cref = c.get('id')
-        for cc in c.iter('{%s}period' % XBRL_NS):
-            dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
-    return dates
-
-
-
-# doing my own version of GetFactValue because the context detection
-# stuff in xbrl.py isn't working
-
-# def (x, ):
-                
-#         factValue = None
-            
-#         if ConceptPeriodType == "Instant":
-#             ContextReference = self.fields['ContextForInstants']
-#         elif ConceptPeriodType == "Duration":
-#             ContextReference = self.fields['ContextForDurations']
-#         else:
-#             #An error occured
-#             return "CONTEXT ERROR"
-        
-#         if not ContextReference:
-#             return None
-
-
-#         oNode = self.getNode("//" + SeekConcept + "[@contextRef='" + ContextReference + "']")
-#         if oNode is not None:                    
-#             factValue = oNode.text
-#             if 'nil' in oNode.keys() and oNode.get('nil')=='true':
-#                 factValue=0
-#                 #set the value to ZERO if it is nil
-#             #if type(factValue)==str:
-#             try:
-#                 factValue = float(factValue)
-#             except:
-#                 print 'couldnt convert %s=%s to string' % (SeekConcept,factValue)
-#                 factValue = None
-#                 pass
-            
-#         return factValue   
-                    
-        

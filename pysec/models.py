@@ -1,3 +1,4 @@
+
 import os
 from pysec import xbrl
 

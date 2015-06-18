@@ -8,11 +8,15 @@ year / column
 """
 
 from pysec.models import Index
+import re
+
+
+XBRL_NS = "http://www.xbrl.org/2003/instance"
 
 
 
 
-def extract_report(report, fields):
+def extract_report(report, fields, axis):
     """
     For an Index (representing a form/quarter/company), extract the 
     requested XBRL elements ("fact values") and turn them into a matrix
@@ -31,14 +35,16 @@ def extract_report(report, fields):
         report (Index): the index of this report from the database
         fields ( { Str: Str } ): a dict of XBRL elts.  The key value here
             is left up to the calling code.
+        axis (Str): orientation of the returned table.  If 'fields', each
+            the table is keyed by fields, otherwise by dates.
 
     Returns:
-        a tuple of date, table
-        where date = [ sorted list of date ranges ]
+        a tuple of headers, table
+        where headers = [ sorted list of column fields ]
               table = { key: [ v1, v2, v3, v4 ... ] }
-        The values v1, v2, v3 are sorted in the same order as the dates.
+        The values v1, v2, v3 are sorted in the same order as the column fields
 
-    Note that this leaves it up to the template to sort the fields and rows
+    Ordering the rows is left up to the template
 
     """
     report.download()
@@ -59,7 +65,7 @@ def extract_report(report, fields):
                 date = dates[contextref]
             else:
                 date = 'Unknown'
-            if date in table[label]:
+            if date in values:
                 print "Warning, duplicate date " + date + " for " + elt
             values[date] = value
             if not date in idates:
@@ -72,10 +78,16 @@ def extract_report(report, fields):
     # have None
 
     table = {}
-    for label, vals in valdict.items():
-        table[label] = [ vals.get(date, None) for date in cdates ]
-    
-         
+    if axis == 'dates':
+        # rows are fields, columns are dates
+        for label, vals in valdict.items():
+            table[label] = [ vals.get(date, None) for date in cdates ]
+    else:
+        # rows are dates, columns are fields
+        cfields = sorted(fields.keys())
+        for date in cdates:
+            table[date] = [ valdict[field].get(date, None) for field in cfields ]
+            
     return cdates, table
 
 def get_dates(xbrl):
@@ -94,7 +106,6 @@ def get_dates(xbrl):
     dates    = {}
     dre = re.compile('[0-9]+-[0-9]+-[0-9]')
     for c in contexts:
-        print c
         cref = c.get('id')
         for cc in c.iter('{%s}period' % XBRL_NS):
             dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
