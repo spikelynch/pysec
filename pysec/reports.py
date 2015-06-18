@@ -13,10 +13,40 @@ import re
 
 XBRL_NS = "http://www.xbrl.org/2003/instance"
 
+REPORTS = {}
+REPORTFIELDS = {}
+
+REPORTS['tax'] = {
+    'Computed expected tax': 'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
+    'State taxes, net of fed effect': 'IncomeTaxReconciliationStateAndLocalIncomeTaxes',
+    'Indef. invested foreign earnings': 'IncomeTaxReconciliationForeignIncomeTaxRateDifferential',
+    'R&D credit, net': 'IncomeTaxReconciliationTaxCreditsResearch',
+    'Domestic Production Deduction': 'IncomeTaxReconciliationDeductionsQualifiedProductionActivities',
+    'Other': 'IncomeTaxReconciliationOtherReconcilingItems',
+    'Provision for income taxes': 'IncomeTaxExpenseBenefit',
+    'Effective tax rate': 'EffectiveIncomeTaxRateContinuingOperations'
+    }
+
+REPORTFIELDS['tax'] = [
+    'Computed expected tax',
+    'State taxes, net of fed effect',
+    'Indef. invested foreign earnings',
+    'R&D credit, net',
+    'Domestic Production Deduction',
+    'Other',
+    'Provision for income taxes',
+    'Effective tax rate'
+    ]
 
 
+def report_fields(report):
+    if report in REPORTFIELDS:
+        return REPORTFIELDS[report]
+    else:
+        raise Exception("No report %s" % report)
 
-def extract_report(report, fields, axis):
+
+def extract_report(index, report, axis):
     """
     For an Index (representing a form/quarter/company), extract the 
     requested XBRL elements ("fact values") and turn them into a matrix
@@ -32,9 +62,8 @@ def extract_report(report, fields, axis):
     Items like this are set to None.
 
     Args:
-        report (Index): the index of this report from the database
-        fields ( { Str: Str } ): a dict of XBRL elts.  The key value here
-            is left up to the calling code.
+        index (Index): the index of this report from the database
+        report (Str): one of the sets of fact elements defined in REPORTS
         axis (Str): orientation of the returned table.  If 'fields', each
             the table is keyed by fields, otherwise by dates.
 
@@ -47,11 +76,14 @@ def extract_report(report, fields, axis):
     Ordering the rows is left up to the template
 
     """
-    report.download()
-    xbrl = report.xbrl()
+    index.download()
+    xbrl = index.xbrl()
     valdict = {}
     dates = get_dates(xbrl)
     idates = {}
+    if report not in REPORTS:
+        raise Exception("Unknown report %s" % report)
+    fields = REPORTS[report]
     for label, tag in fields.items():
         factelts = xbrl.getNodeList('//us-gaap:' + tag)
         values = {}

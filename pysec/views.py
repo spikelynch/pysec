@@ -16,33 +16,12 @@ from pysec.models import Index
 
 from lxml.html.soupparser import unescape
 
-from pysec.reports import extract_report
+from pysec.reports import extract_report, report_fields
 
 #TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
 
 # TAXRECELTS are the us-gaap elements for the tax reconciliation fields
 
-TAXRECELTS = {
-    'Computed expected tax': 'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
-    'State taxes, net of fed effect': 'IncomeTaxReconciliationStateAndLocalIncomeTaxes',
-    'Indef. invested foreign earnings': 'IncomeTaxReconciliationForeignIncomeTaxRateDifferential',
-    'R&D credit, net': 'IncomeTaxReconciliationTaxCreditsResearch',
-    'Domestic Production Deduction': 'IncomeTaxReconciliationDeductionsQualifiedProductionActivities',
-    'Other': 'IncomeTaxReconciliationOtherReconcilingItems',
-    'Provision for income taxes': 'IncomeTaxExpenseBenefit',
-    'Effective tax rate': 'EffectiveIncomeTaxRateContinuingOperations'
-    }
-
-TAXFIELDS = [
-    'Computed expected tax',
-    'State taxes, net of fed effect',
-    'Indef. invested foreign earnings',
-    'R&D credit, net',
-    'Domestic Production Deduction',
-    'Other',
-    'Provision for income taxes',
-    'Effective tax rate'
-    ]
 
 
 def home(request):
@@ -74,45 +53,15 @@ def company(request, company):
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
 
 
-def report(request, cik, quarter, form):
+
+
+def report_html(request, report, cik, quarter):
     """
-    Return an HTML version of a single form.
-
-    Args:
-        request (HTTPRequest): the Django request
-        cik (Str): the company CIK number
-        quarter (Str): the year and quarter as YYYYQ
-        form (Str): the form to return (eg 10-K)
-
-    Returns:
-        HTTPResponse
-
-    """
-    errmsg = None
-    report = None
-    rows = None
-    try:
-        report = Index.objects.get(cik=cik, quarter=quarter, form=form)
-    except Index.DoesNotExist:
-        errmsg = "Could not find report %s for %s %s" % (form, cik, quarter)
-    except Index.MultipleObjectsReturned:
-        errmsg = "More than one report %s for %s %s" % (form, cik, quarter)
-    except:
-        errmsg = "Unknown error"
-    if report:
-        rows = get_report(report)
-    values = { 'report': report, 'rows': rows, 'error': errmsg }
-    return render(request, 'pysec/report.html', values)
-
-
-
-
-def reconciliation(request, cik, quarter):
-    """
-    Returns the HTML rendered for a tax reconciliation report
+    Returns the HTML rendered for a report
 
     Args:
         request (HTTPResquest): the Django request
+        report (Str): the name of the report
         cik (Str): the company's cik number
         quarter (Str): the quarter as YYYYQ
 
@@ -126,30 +75,33 @@ def reconciliation(request, cik, quarter):
     """
     values = { 'report': None }
     try:
-        report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
-        if report: 
-            dates, dicttable = extract_report(report, TAXRECELTS, 'dates')
-            table =  [ ( field, dicttable[field] ) for field in TAXFIELDS ]
+        index = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
+        if index:
+            fields = report_fields(report)
+            dates, dicttable = extract_report(index, report, 'dates')
+            table =  [ ( field, dicttable[field] ) for field in fields ]
+            values['index'] = index
             values['report'] = report
             values['table'] = table
             values['dates'] = dates
-            values['fields'] = TAXFIELDS
+            values['fields'] = fields
         else:
             values['error'] = "Report extraction failed for %s" % cik
     except:
         values['error'] = "10-K not found for %s" % cik
         raise
-    return render(request, 'pysec/reconciliation.html', values)
+    return render(request, 'pysec/report.html', values)
 
 
 
 
-def reconciliation_xml(request, cik, quarter):
+def report_xml(request, report, cik, quarter):
     """
-    Returns the XML rendered for a tax reconciliation report
+    Returns the XML rendered for a report
 
     Args:
         request (HTTPResquest): the Django request
+        report (Str): the name of the report
         cik (Str): the company's cik number
         quarter (Str): the quarter as YYYYQ
 
@@ -160,73 +112,25 @@ def reconciliation_xml(request, cik, quarter):
     
     values = { 'report': None }
     try:
-        report = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
-        if report: 
-            dates, dicttable = extract_report(report, TAXRECELTS, 'fields')
-            print "dicttable"
-            print dicttable
-            # Note: zipping in the TAXFIELDS so that they are available in
+        index = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
+        if index: 
+            fields = report_fields(report)
+            dates, dicttable = extract_report(index, report, 'fields')
+            # Note: zipping in fields so that they are available in
             # the template at the element level
-            staxfields = sorted(TAXFIELDS)
-            table = [ ( date, zip(staxfields, dicttable[date]) ) for date in dates ] 
+            sfields = sorted(fields)
+            table = [ ( date, zip(sfields, dicttable[date]) ) for date in dates ] 
+            values['index'] = index
             values['report'] = report
             values['table'] = table
             values['dates'] = dates
-            values['fields'] = TAXFIELDS
+            values['fields'] = fields
         else:
             values['error'] = "Report extraction failed for %s" % cik
     except:
         values['error'] = "10-K not found for %s" % cik
         raise
-    return render(request, 'pysec/reconciliation.xml', values, content_type='application/xml')
+    return render(request, 'pysec/report.xml', values, content_type='application/xml')
 
 
-def reports(request, cik, form):
-    """
-    Returns the HTML rendered for a list of reports
 
-    Args:
-        request (HTTPResquest): the Django request
-        cik (Str): the company's cik number
-        quarter (Str): the quarter as YYYYQ
-
-    Return:
-        HTTPResponse
-
-    """
-    values = { 'cik': cik, 'reports':[] }
-    print "cik = %s, form = %s" % ( cik, form )
-    reports = Index.objects.filter(cik=cik, form=form)
-    if not reports:
-        values['error'] = "No reports found for %s" % cik
-    for report in reports:
-        rows = get_report(report)
-        if rows:
-            if not 'name' in values:
-                values['name'] = report.name
-            values['reports'].append({ 'quarter': report.quarter,'rows': rows } )
-    return render(request, 'pysec/reports.xml', values, content_type='application/xml')
-        
-
-
-def get_report(report):
-    """
-    Fetch the report from the xblr interface and build a simple table
-
-    Args:
-        report (Index): the report's index record from the database
-
-    Returns:
-        [ [ field, values ] ]
-    """
-    
-    report.download()
-    xbrl = report.xbrl()
-    if xbrl:
-        rows = []
-        for f in xbrl.fields:
-            rows.append( [ f, xbrl.fields[f] ] )
-        return rows
-    else:
-        return None
-    
