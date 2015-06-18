@@ -1,7 +1,4 @@
-{% if errmsg %}
-<p>Error: {{ errmsg }}</p>
-{% else %}
-
+{% if report %}
 <table>
   <tr>
     <td>Company</td>
@@ -17,19 +14,27 @@
   </tr>
 </table>
 
-{% if rows %}
 
 <table>
-  {% for row in rows %}
   <tr>
-    {% for column in row %}
-    <td>{{ column }}</td>
+    <td>&nbsp;</td>
+    {% for date in dates %}
+    <td><b>{{ date }}</b></td>
+    {% endfor %}
+  </tr>
+  {% for field, row in table %}
+  <tr>
+    <td><b>{{ field }}</b></td>
+    {% for value in row %}
+    <td align="right">
+      {{ value }}
+    </td>
     {% endfor %}
   </tr>
   {% endfor %}
 </table>
+  
 
-{% endif %}
-
-
+{% else %}
+<p>Error: {{ error }}</p>
 {% endif %}
