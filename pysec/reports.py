@@ -15,6 +15,7 @@ XBRL_NS = "http://www.xbrl.org/2003/instance"
 
 REPORTS = {}
 REPORTFIELDS = {}
+REPORTFORMS = {}
 
 REPORTS['tax'] = {
     'Computed expected tax': 'IncomeTaxReconciliationIncomeTaxExpenseBenefitAtFederalStatutoryIncomeTaxRate',
@@ -38,14 +39,22 @@ REPORTFIELDS['tax'] = [
     'Effective tax rate'
     ]
 
+REPORTFORMS['tax'] = '10-K'
 
 def report_fields(report):
+    """Return a list of fields for report or raise an error"""
     if report in REPORTFIELDS:
         return REPORTFIELDS[report]
     else:
         raise Exception("No report %s" % report)
 
-
+def report_form(report):
+    """Return the form required by the report or rais an error"""
+    if report in REPORTFORMS:
+        return REPORTFORMS[report]
+    else:
+        raise Exception("No report %s" % report)
+    
 def extract_report(index, report, axis):
     """
     For an Index (representing a form/quarter/company), extract the 

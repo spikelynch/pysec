@@ -16,7 +16,8 @@ from pysec.models import Index
 
 from lxml.html.soupparser import unescape
 
-from pysec.reports import extract_report, report_fields
+from pysec.reports import extract_report, report_fields, report_form
+from pysec.utils import quarter_split
 
 #TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
 
@@ -39,8 +40,6 @@ def search(request):
         return home(request)
 
 
-
-
 def companies(request):
     """Look up companies with 10-K forms by their CIK."""
     companies = Index.objects.filter(form__contains='10-K').values('name', 'cik').distinct()
@@ -53,7 +52,54 @@ def company(request, company):
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
 
 
+def reports(request, report, quarter):
+    """
+    Returns a HTML page giving a list of all companies with a given report
+    in a given quarter.
 
+    Args:
+        request (HTTPResquest): the Django request
+        report (Str): the name of the report
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        HTTPResponse
+    """
+    form = report_form(report)
+    y, q = quarter_split(quarter)
+    values = { 'report': report, 'form': form, 'quarter': quarter, 'y': y, 'q': q }
+    try:
+        companies = Index.objects.filter(quarter=quarter, form=form).values('name', 'cik').distinct()
+        if companies:
+            values['companies'] = companies
+        else:
+            values['error'] = "No reports found with the form required"
+    except:
+        values['error'] = "Index lookup failed"
+    return render(request, 'pysec/reports.html', values)
+
+
+def reports_xml(request, report, quarter):
+    """
+    Returns an XML document giving a list of all companies with a given report
+    in a given quarter.
+
+    Args:
+        request (HTTPResquest): the Django request
+        report (Str): the name of the report
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        HTTPResponse
+    """
+    form = report_form(report)
+    try:
+        indices = Index.objects.filter(quarter=quarter, form=form).values('name', 'cik').distinct()
+    except:
+        raise
+        return render(request, 'pysec/reports.xml', { 'indices': indices, 'report': report, 'quarter': quarter })
+
+    
 
 def report_html(request, report, cik, quarter):
     """
