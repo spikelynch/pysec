@@ -7,6 +7,8 @@ year / column
 
 """
 
+from django.conf import settings
+
 from pysec.models import Index
 import re
 

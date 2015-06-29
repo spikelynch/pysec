@@ -67,7 +67,7 @@ DATA_DIR = "%s/pysec/data/" % PROJECT_ROOT
 
 
 # Python dotted path to the WSGI application used by Django's runserver; added in v1.4
-WSGI_APPLICATION = 'wsgi.application'
+WSGI_APPLICATION = 'pysec.wsgi.application'
 
 
 

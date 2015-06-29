@@ -4,6 +4,7 @@
   <error>{{ error }}</error>
   {% endif %}
   {% for c in companies %}
-  <report name="{{ c.name }}" href="{% url 'report-xml' report quarter c.cik %}" />
+  <report name="{{ c.name }}" cik="{{ c.cik }}" href="{% url 'report-xml' report quarter c.cik %}" />
   {% endfor %}
 </reports>
+
