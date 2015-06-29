@@ -1,12 +1,11 @@
-{% if report %}
 <table>
   <tr>
     <td>Company</td>
-    <td>{{ index.name }} {{ index.cik}}</td>
+    <td>{{ company }} {{ cik}}</td>
   </tr>
   <tr>
     <td>Form</td>
-    <td>{{ index.form }}</td>
+    <td>{{ form }}</td>
   </tr>
   <tr>
     <td>Report</td>
@@ -14,10 +13,17 @@
   </tr>
   <tr>
     <td>Date</td>
-    <td>{{ index.date }} {{ index.quarter }}</td>
+    <td>Q{{ q }}, {{ y }} </td>
   </tr>
 </table>
 
+{% if error %}
+<div id="error">Error: {{ error }}</p>
+{% endif %}
+
+<p><a href="{% url 'reports-html' report quarter %}">Reports</a></p>
+
+{% if table %}
 
 <table>
   <tr>
@@ -37,8 +43,5 @@
   </tr>
   {% endfor %}
 </table>
-  
+{% endif %}  
 
-{% else %}
-<p>Error: {{ error }}</p>
-{% endif %}

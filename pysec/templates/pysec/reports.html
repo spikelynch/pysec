@@ -1,0 +1,14 @@
+<h3>Reports: {{ report }}</h3>
+<p>List of companies with {{ form }} in Q{{ q }}, {{ y }}</p>
+
+<div id="list">
+{% if companies %}
+    <ul>
+    {% for c in companies %}
+        <li><a href="{% url 'report-html' report quarter c.cik %}">{{ c.name }}</a></li>
+    {% endfor %}
+    </ul>    
+{% else %}
+    <p>No companies found</p>
+{% endif %}
+</div>

@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
-<reports form="{{ form }}" report="{{ report }}" cik="{{ cik }}">
+<reports form="{{ form }}" report="{{ report }}" quarter="{{ quarter }}">
   {% if error %}
   <error>{{ error }}</error>
   {% endif %}
-  {% for name, cik in companies %}
+  {% for c in companies %}
+  <report name="{{ c.name }}" href="{% url 'report-xml' report quarter c.cik %}" />
   {% endfor %}
 </reports>

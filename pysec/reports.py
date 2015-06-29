@@ -87,6 +87,8 @@ def extract_report(index, report, axis):
     """
     index.download()
     xbrl = index.xbrl()
+    if not xbrl:
+        raise Exception("XBRL parse failed")
     valdict = {}
     dates = get_dates(xbrl)
     idates = {}
@@ -107,7 +109,7 @@ def extract_report(index, report, axis):
             else:
                 date = 'Unknown'
             if date in values:
-                print "Warning, duplicate date " + date + " for " + elt
+                print "Warning, duplicate date " + date + " for " + factelt.tag
             values[date] = value
             if not date in idates:
                 idates[date] = 1
@@ -142,13 +144,16 @@ def get_dates(xbrl):
     Returns:
         { Str: Str }
     """
-    
-    contexts = [ el for el in xbrl.oInstance.iter("{%s}context" % XBRL_NS) ]
-    dates    = {}
-    dre = re.compile('[0-9]+-[0-9]+-[0-9]')
-    for c in contexts:
-        cref = c.get('id')
-        for cc in c.iter('{%s}period' % XBRL_NS):
-            dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
-    return dates
+
+    if xbrl.oInstance:
+        contexts = [ el for el in xbrl.oInstance.iter("{%s}context" % XBRL_NS) ]
+        dates    = {}
+        dre = re.compile('[0-9]+-[0-9]+-[0-9]')
+        for c in contexts:
+            cref = c.get('id')
+            for cc in c.iter('{%s}period' % XBRL_NS):
+                dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
+        return dates
+    else:
+        return None        
 

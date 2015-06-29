@@ -52,7 +52,10 @@ def company(request, company):
     return render(request, 'pysec/company.html', {'reports': reports, 'cik': company})
 
 
-def reports(request, report, quarter):
+
+
+
+def reports_html(request, report, quarter):
     """
     Returns a HTML page giving a list of all companies with a given report
     in a given quarter.
@@ -65,18 +68,7 @@ def reports(request, report, quarter):
     Return:
         HTTPResponse
     """
-    form = report_form(report)
-    y, q = quarter_split(quarter)
-    values = { 'report': report, 'form': form, 'quarter': quarter, 'y': y, 'q': q }
-    try:
-        companies = Index.objects.filter(quarter=quarter, form=form).values('name', 'cik').distinct()
-        if companies:
-            values['companies'] = companies
-        else:
-            values['error'] = "No reports found with the form required"
-    except:
-        values['error'] = "Index lookup failed"
-    return render(request, 'pysec/reports.html', values)
+    return render(request, 'pysec/reports.html', reports(report, quarter))
 
 
 def reports_xml(request, report, quarter):
@@ -92,24 +84,49 @@ def reports_xml(request, report, quarter):
     Return:
         HTTPResponse
     """
+    return render(request, 'pysec/reports.xml', reports(report, quarter),  content_type='application/xml')
+
+
+
+def reports(report, quarter):
+    """
+    Returns a values dict which can be rendered in either HTML or XML
+    giving a list of reports for a quarter
+
+    Args:
+        report (Str): the name of the report
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        dict of fields for templates:
+            
+    
+    """
     form = report_form(report)
+    y, q = quarter_split(quarter)
+    values = { 'report': report, 'form': form, 'quarter': quarter, 'y': y, 'q': q }
     try:
-        indices = Index.objects.filter(quarter=quarter, form=form).values('name', 'cik').distinct()
+        companies = Index.objects.filter(quarter=quarter, form=form).values('name', 'cik').distinct()
+        if companies:
+            values['companies'] = companies
+        else:
+            values['error'] = "No reports found with the form required"
     except:
-        raise
-        return render(request, 'pysec/reports.xml', { 'indices': indices, 'report': report, 'quarter': quarter })
+        values['error'] = "Index lookup failed"
+    return values
+
 
     
 
-def report_html(request, report, cik, quarter):
+def report_html(request, report, quarter, cik):
     """
     Returns the HTML rendered for a report
 
     Args:
         request (HTTPResquest): the Django request
         report (Str): the name of the report
-        cik (Str): the company's cik number
         quarter (Str): the quarter as YYYYQ
+        cik (Str): the company's cik number
 
     Return:
         HTTPResponse
@@ -119,29 +136,32 @@ def report_html(request, report, cik, quarter):
     percentages ("0.252" -> "25,2%")
 
     """
-    values = { 'report': None }
+    values = { 'report': report, 'cik': cik, 'quarter': quarter }
+    y, q = quarter_split(quarter)
+    values['y'] = y
+    values['q'] = q
+    form = report_form(report)
     try:
-        index = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
-        if index:
-            fields = report_fields(report)
+        index = Index.objects.get(cik=cik, quarter=quarter, form=form)
+        fields = report_fields(report)
+        values['company'] = index.name
+        try:
             dates, dicttable = extract_report(index, report, 'dates')
             table =  [ ( field, dicttable[field] ) for field in fields ]
             values['index'] = index
-            values['report'] = report
             values['table'] = table
             values['dates'] = dates
             values['fields'] = fields
-        else:
-            values['error'] = "Report extraction failed for %s" % cik
+        except:
+            values['error'] = "Report extraction failed"
     except:
-        values['error'] = "10-K not found for %s" % cik
-        raise
+        values['error'] = "Index record not found for %s" % cik
     return render(request, 'pysec/report.html', values)
 
 
 
 
-def report_xml(request, report, cik, quarter):
+def report_xml(request, report, quarter, cik):
     """
     Returns the XML rendered for a report
 
