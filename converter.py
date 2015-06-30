@@ -33,9 +33,8 @@ def get_index(report, quarter):
     try:
         index = {}
         sio = StringIO(urlopen(INDEX_URL % (report, quarter)).read())
-        reports = etree.iterparse(sio, events=("start",))
         error = None
-        for action, elt in reports:
+        for action, elt in etree.iterparse(sio, events=("start",)):
             if elt.tag == 'error':
                 error = elt.text
             elif elt.tag == 'report':
@@ -53,13 +52,45 @@ def get_index(report, quarter):
 
 
 def get_report(report, quarter, cik):
-    """Loads and parses a table of facts for a company/quarter/report"""
+    """
+    Loads and parses a table of facts for a report/quarter/company.  Returns
+    a dict of dicts keyed by date-span and then by value.
+
+    Args:
+        report (Str): name of the report
+        quarter (Str): YYYYQ
+        cik (Str): CIK (company ID)
+    
+    Returns:
+        {
+            "DATE RANGE 1": {
+                "column name 1": VALUE1,
+                "column name 2": VALUE2, ...
+            },
+            "DATE RANGE 2": {
+                ...
+        }
+    """
+    
     url = REPORT_URL % ( report, quarter, cik )
     print "Loading from %s" % url
     sio = StringIO(urlopen(url).read())
-    tree = etree.parse(sio)
-    print tree
+    p = None
+    values = {}
+    for action, elt in etree.iterparse(sio, events=("start",)):
+        if elt.tag == "period":
+            p = elt.get("date")
+        elif elt.tag == "value":
+            if not p:
+                print "warn: value tag outside period"
+                p = "unknown"
+            if p not in values:
+                values[p] = {}
+            v = elt.get("id")
+            values[p][v] = elt.text
 
+    return values
+    
 
 RPT = 'tax'
 
@@ -76,8 +107,5 @@ for q in QUARTERS:
             if i > MAX:
                 break
             i += 1
-            
+            print data
 
-    #    print "[%s] %s: %s" % ( cik, index[cik].name, index[cik].url )
-
-#get_reconciliation('320193', '20124')
