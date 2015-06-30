@@ -6,7 +6,7 @@ from django.conf import settings
 
 from sys import path
 
-from pysec.reports import report_form, report_fields
+from pysec.reports import report_form, report_fields, ReportException
 
 from urllib import urlopen
 from StringIO import StringIO
@@ -52,23 +52,32 @@ def get_index(report, quarter):
         raise
 
 
-def get_report(report, cik, quarter):
+def get_report(report, quarter, cik):
     """Loads and parses a table of facts for a company/quarter/report"""
-    url = REPORT % ( report, quarter, cik )
+    url = REPORT_URL % ( report, quarter, cik )
     print "Loading from %s" % url
-    sio = StringIO(urlopen(INDEX).read())
+    sio = StringIO(urlopen(url).read())
     tree = etree.parse(sio)
     print tree
 
 
+RPT = 'tax'
 
-index = get_index('tax', QUARTERS[0])
+MAX = 10
 
-print "Got index"
-print index
+for q in QUARTERS:
 
-for cik in index:
-    print cik
-#    print "[%s] %s: %s" % ( cik, index[cik].name, index[cik].url )
+    index = get_index(RPT, q)
+    i = 0
+    if index:
+        for cik in index:
+            print cik
+            data = get_report(RPT, q, cik)
+            if i > MAX:
+                break
+            i += 1
+            
+
+    #    print "[%s] %s: %s" % ( cik, index[cik].name, index[cik].url )
 
 #get_reconciliation('320193', '20124')

@@ -12,18 +12,20 @@ from django.template import Context
 
 from django.shortcuts import render
 
+import logging
+
 from pysec.models import Index
 
 from lxml.html.soupparser import unescape
 
-from pysec.reports import extract_report, report_fields, report_form
+from pysec.reports import extract_report, report_fields, report_form, ReportException
 from pysec.utils import quarter_split
 
 #TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
 
 # TAXRECELTS are the us-gaap elements for the tax reconciliation fields
 
-
+logger = logging.getLogger(__name__)
 
 def home(request):
     """Render and return the home page."""
@@ -152,10 +154,11 @@ def report_html(request, report, quarter, cik):
             values['table'] = table
             values['dates'] = dates
             values['fields'] = fields
-        except:
-            values['error'] = "Report extraction failed"
-    except:
-        values['error'] = "Index record not found for %s" % cik
+        except ReportException as e:
+            print "EXCEPT"
+            values['error'] = "Report extraction failed: %s" % e 
+    except Exception as e:
+        values['error'] = "Index record not found for %s: %s" % (cik, e)
     return render(request, 'pysec/report.html', values)
 
 
@@ -176,10 +179,13 @@ def report_xml(request, report, quarter, cik):
  
     """
     
-    values = { 'report': None }
+    values = { 'report': report, 'cik': cik, 'quarter': quarter }
+    y, q = quarter_split(quarter)
+    values['y'] = y
+    values['q'] = q
     try:
         index = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
-        if index: 
+        try:
             fields = report_fields(report)
             dates, dicttable = extract_report(index, report, 'fields')
             # Note: zipping in fields so that they are available in
@@ -191,11 +197,10 @@ def report_xml(request, report, quarter, cik):
             values['table'] = table
             values['dates'] = dates
             values['fields'] = fields
-        else:
-            values['error'] = "Report extraction failed for %s" % cik
-    except:
-        values['error'] = "10-K not found for %s" % cik
-        raise
+        except ReportException as e:
+            values['error'] = "Report extraction failed for %s: %s" % (cik, e)
+    except ReportException as e:
+        values['error'] = "Index not found for %s" % (cik, e)
     return render(request, 'pysec/report.xml', values, content_type='application/xml')
 
 

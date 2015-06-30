@@ -5,7 +5,7 @@ from pysec import xbrl
 from django.db import models
 from django.conf import settings
 
-#DATA_DIR = settings.DATA_DIR
+DATA_DIR = settings.DATA_DIR
 
 class Index(models.Model):
     

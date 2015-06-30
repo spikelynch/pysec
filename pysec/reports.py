@@ -43,19 +43,29 @@ REPORTFIELDS['tax'] = [
 
 REPORTFORMS['tax'] = '10-K'
 
+
+class ReportException(Exception):
+    def __init__(self, error):
+        self.error = error
+
+    def __str__(self):
+        return self.error
+
+
+
 def report_fields(report):
     """Return a list of fields for report or raise an error"""
     if report in REPORTFIELDS:
         return REPORTFIELDS[report]
     else:
-        raise Exception("No report %s" % report)
+        raise ReportException("No report %s" % report)
 
 def report_form(report):
     """Return the form required by the report or rais an error"""
     if report in REPORTFORMS:
         return REPORTFORMS[report]
     else:
-        raise Exception("No report %s" % report)
+        raise ReportException("No report %s" % report)
     
 def extract_report(index, report, axis):
     """
@@ -90,12 +100,12 @@ def extract_report(index, report, axis):
     index.download()
     xbrl = index.xbrl()
     if not xbrl:
-        raise Exception("XBRL parse failed")
+        raise ReportException("XBRL parse failed")
     valdict = {}
     dates = get_dates(xbrl)
     idates = {}
     if report not in REPORTS:
-        raise Exception("Unknown report %s" % report)
+        raise ReportException("Unknown report %s" % report)
     fields = REPORTS[report]
     for label, tag in fields.items():
         factelts = xbrl.getNodeList('//us-gaap:' + tag)
