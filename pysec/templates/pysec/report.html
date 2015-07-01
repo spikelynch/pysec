@@ -28,15 +28,16 @@
 <table>
   <tr>
     <td>&nbsp;</td>
-    {% for date in dates %}
-    <td><b>{{ date }}</b></td>
+    {% for start, end in dates %}
+    <td><b>{{ start }}</b></td>
+    <td><b>{{ end }}</b></td>
     {% endfor %}
   </tr>
   {% for field, row in table %}
   <tr>
     <td><b>{{ field }}</b></td>
     {% for value in row %}
-    <td align="right">
+    <td colspan="2" align="right">
       {{ value }}
     </td>
     {% endfor %}

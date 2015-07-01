@@ -3,8 +3,8 @@
   {% if error %}
   <error>{{ error }}</error>
   {% endif %}
-  {% for date, row in table %}
-  <period date="{{ date }}">
+  {% for startdate, enddate, row in table %}
+  <period start="{{ startdate }}" end="{{ enddate }}">
     {% for field, value in row  %}
         {% if value %}
         <value id="{{field}}">{{ value }}</value>

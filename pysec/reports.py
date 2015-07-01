@@ -11,6 +11,10 @@ from django.conf import settings
 
 from pysec.models import Index
 import re
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 XBRL_NS = "http://www.xbrl.org/2003/instance"
@@ -119,7 +123,7 @@ def extract_report(index, report, axis):
             if contextref in dates:
                 date = dates[contextref]
             else:
-                date = 'Unknown'
+                date = '-'
             if date in values:
                 print "Warning, duplicate date " + date + " for " + factelt.tag
             values[date] = value
@@ -127,6 +131,7 @@ def extract_report(index, report, axis):
                 idates[date] = 1
         valdict[label] = values
 
+    # date ranges are now ';' separated
     cdates = sorted(idates.keys())
 
     # now generate a matrix of all dates x all fields, where empty cells
@@ -154,7 +159,7 @@ def get_dates(xbrl):
         xbrl (XBLR): the XBRL document
 
     Returns:
-        { Str: Str }
+        { Str: [ Str ] } - a dict by ID to an array of date strings
     """
 
     if xbrl.oInstance:
@@ -164,7 +169,7 @@ def get_dates(xbrl):
         for c in contexts:
             cref = c.get('id')
             for cc in c.iter('{%s}period' % XBRL_NS):
-                dates[cref] = '-'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
+                dates[cref] = ';'.join(filter(dre.match, [ el.text for el in cc.iter() ]))
         return dates
     else:
         return None        

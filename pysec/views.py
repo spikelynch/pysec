@@ -152,7 +152,7 @@ def report_html(request, report, quarter, cik):
             table =  [ ( field, dicttable[field] ) for field in fields ]
             values['index'] = index
             values['table'] = table
-            values['dates'] = dates
+            values['dates'] = map(split_date, dates)
             values['fields'] = fields
         except ReportException as e:
             print "EXCEPT"
@@ -192,11 +192,11 @@ def report_xml(request, report, quarter, cik):
             # Note: zipping in fields so that they are available in
             # the template at the element level
             sfields = sorted(fields)
-            table = [ ( date, zip(sfields, dicttable[date]) ) for date in dates ] 
+            table = [ split_date(date) + (zip(sfields, dicttable[date]),) for date in dates ] 
             values['index'] = index
             values['report'] = report
             values['table'] = table
-            values['dates'] = dates
+            values['dates'] =  map(split_date, dates)
             values['fields'] = fields
         except ReportException as e:
             values['error'] = "Report extraction failed for %s: %s" % (cik, e)
@@ -206,3 +206,13 @@ def report_xml(request, report, quarter, cik):
 
 
 
+
+def split_date(d):
+    """Splits a pair of dates on ';', is guaranteed to return a 2-tuple"""
+    l = d.split(';')
+    if len(l) == 0:
+        return ( None, None )
+    elif len(l) == 1:
+        return ( l[0], None )
+    else:
+        return tuple(l[:2])
