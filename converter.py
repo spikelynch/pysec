@@ -4,15 +4,21 @@ PYSEC_URL = 'http://127.0.0.1:8000/'
 
 from django.conf import settings
 
+import logging
+import csv
+
 from sys import path
 
 from pysec.reports import report_form, report_fields, ReportException
+from pysec.utils import quarter_split
 
 from urllib import urlopen
 from StringIO import StringIO
 from lxml import etree
 
 # FIXME - it would be better to have these use Django reverse-url stuff
+
+logger = logging.getLogger('pysec.converter')
 
 INDEX_URL  = PYSEC_URL + 'reports/%s/%s.xml'
 REPORT_URL = PYSEC_URL + 'report/%s/%s/%s.xml'
@@ -43,11 +49,11 @@ def get_index(report, quarter):
                 url = elt.get('href')
                 index[cik] = { 'name': name, 'url': url }
         if error:
-            print "Error message from pysec: " + error
+            logger.error("Error message from pysec: " + error)
             return {}
         return index
     except:
-        print "parse error"
+        logger.error("parse error")
         raise
 
 
@@ -73,7 +79,7 @@ def get_report(report, quarter, cik):
     """
     
     url = REPORT_URL % ( report, quarter, cik )
-    print "Loading from %s" % url
+    logger.info("Loading from %s" % url)
     sio = StringIO(urlopen(url).read())
     p = None
     values = {}
@@ -82,7 +88,7 @@ def get_report(report, quarter, cik):
             p = elt.get("date")
         elif elt.tag == "value":
             if not p:
-                print "warn: value tag outside period"
+                logger.warn("value tag outside period in %s" % url)
                 p = "unknown"
             if p not in values:
                 values[p] = {}
@@ -93,19 +99,39 @@ def get_report(report, quarter, cik):
     
 
 RPT = 'tax'
+output_file = './test.csv'
 
 MAX = 10
 
-for q in QUARTERS:
+columns = [ 'Year', 'Quarter', 'CIK', 'Name', 'Dates' ] + report_fields(RPT)
 
-    index = get_index(RPT, q)
-    i = 0
-    if index:
-        for cik in index:
-            print cik
-            data = get_report(RPT, q, cik)
-            if i > MAX:
-                break
-            i += 1
-            print data
+# CSV output as follows:
+#
+# YYYY,Q,cik,name,date-range,f1,f2,f3, ... fn
+#
+# where f1..fn are the field names of the report
+
+with open(output_file, 'w') as csvfile:
+    writer = csv.DictWriter(csvfile, fieldnames = columns)
+    writer.writeheader()
+    for quarter in QUARTERS:
+        y, q = quarter_split(quarter)
+        index = get_index(RPT, quarter)
+        i = 0
+        if index:
+            for cik in index:
+                logger.info("[%s] %s" % ( cik, index[cik]["name"] ))
+                rows = get_report(RPT, quarter, cik)
+                if rows:
+                    for date, row in rows.items():
+                        row['Year'] = y
+                        row['Quarter'] = q
+                        row['CIK' ] = cik
+                        row['Name'] = index[cik]["name"]
+                        row['Dates'] = date
+                        writer.writerow(row)
+        if i > MAX:
+            logger.info("Reached maximum of %d records: quitting" % i)
+            break
+        i += 1
 
