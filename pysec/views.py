@@ -138,11 +138,11 @@ def report_html(request, report, quarter, cik):
     percentages ("0.252" -> "25,2%")
 
     """
-    values = { 'report': report, 'cik': cik, 'quarter': quarter }
+    form = report_form(report)
+    values = { 'report': report, 'cik': cik, 'quarter': quarter, 'form': form }
     y, q = quarter_split(quarter)
     values['y'] = y
     values['q'] = q
-    form = report_form(report)
     try:
         index = Index.objects.get(cik=cik, quarter=quarter, form=form)
         fields = report_fields(report)
@@ -179,12 +179,13 @@ def report_xml(request, report, quarter, cik):
  
     """
     
-    values = { 'report': report, 'cik': cik, 'quarter': quarter }
+    form = report_form(report)
+    values = { 'report': report, 'cik': cik, 'quarter': quarter, 'form': form }
     y, q = quarter_split(quarter)
     values['y'] = y
     values['q'] = q
     try:
-        index = Index.objects.get(cik=cik, quarter=quarter, form='10-K')
+        index = Index.objects.get(cik=cik, quarter=quarter, form=form)
         try:
             fields = report_fields(report)
             dates, dicttable = extract_report(index, report, 'fields')
@@ -199,8 +200,8 @@ def report_xml(request, report, quarter, cik):
             values['fields'] = fields
         except ReportException as e:
             values['error'] = "Report extraction failed for %s: %s" % (cik, e)
-    except ReportException as e:
-        values['error'] = "Index not found for %s" % (cik, e)
+    except Exception as e:
+        values['error'] = "Index lookup error for %s/%s/%s: %s" % (quarter, form, cik, e)
     return render(request, 'pysec/report.xml', values, content_type='application/xml')
 
 

@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<report company="{{ index.name }}" cik="{{ index.cik }}" form="{{ index.form }}" report="{{ report }}">
+<report {% if name %} company="{{ name }}" {% endif %} cik="{{ cik }}" form="{{ form }}" report="{{ report }}">
   {% if error %}
   <error>{{ error }}</error>
   {% endif %}
