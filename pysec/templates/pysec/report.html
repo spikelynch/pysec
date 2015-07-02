@@ -15,6 +15,14 @@
     <td>Date</td>
     <td>Q{{ q }}, {{ y }} </td>
   </tr>
+  <tr>
+    <td>Sources</td>
+    <td>
+      <a href="{{ index_link }}">Filing detail index</a>
+      <br /><a href="{{ html_link }}">Web version</a>
+      {% if xbrl_link %}<br /><a href="{{ xbrl_link }}">XBRL package</a>{% endif %}
+    </td>
+  </tr>
 </table>
 
 {% if error %}

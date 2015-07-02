@@ -135,30 +135,22 @@ def report_html(request, report, quarter, cik):
 
     TODO: make some template tags which give readable versions of the
     dollar amounts ("677000000" -> "$677,000,000" or "$M677") and 
-    percentages ("0.252" -> "25,2%")
+    percentages ("0.252" -> "25,2%") AND dates
 
     """
-    form = report_form(report)
-    values = { 'report': report, 'cik': cik, 'quarter': quarter, 'form': form }
-    y, q = quarter_split(quarter)
-    values['y'] = y
-    values['q'] = q
-    try:
-        index = Index.objects.get(cik=cik, quarter=quarter, form=form)
-        fields = report_fields(report)
-        values['company'] = index.name
+    index, values = report_common(report, quarter, cik)
+    fields = report_fields(report)
+    if index:
         try:
             dates, dicttable = extract_report(index, report, 'dates')
             table =  [ ( field, dicttable[field] ) for field in fields ]
-            values['index'] = index
             values['table'] = table
             values['dates'] = map(split_date, dates)
             values['fields'] = fields
         except ReportException as e:
-            print "EXCEPT"
-            values['error'] = "Report extraction failed: %s" % e 
-    except Exception as e:
-        values['error'] = "Index record not found for %s: %s" % (cik, e)
+            values['error'] = "Report extraction failed: %s" % e
+        except Exception as e:
+            values['error'] = "Exception: %s" % e
     return render(request, 'pysec/report.html', values)
 
 
@@ -166,7 +158,7 @@ def report_html(request, report, quarter, cik):
 
 def report_xml(request, report, quarter, cik):
     """
-    Returns the XML rendered for a report
+    Returns an XML version of a single report
 
     Args:
         request (HTTPResquest): the Django request
@@ -178,31 +170,57 @@ def report_xml(request, report, quarter, cik):
         Httpresponse
  
     """
-    
-    form = report_form(report)
-    values = { 'report': report, 'cik': cik, 'quarter': quarter, 'form': form }
-    y, q = quarter_split(quarter)
-    values['y'] = y
-    values['q'] = q
-    try:
-        index = Index.objects.get(cik=cik, quarter=quarter, form=form)
+    index, values = report_common(report, quarter, cik)
+    fields = report_fields(report)
+    if index:
         try:
-            fields = report_fields(report)
             dates, dicttable = extract_report(index, report, 'fields')
             # Note: zipping in fields so that they are available in
             # the template at the element level
             sfields = sorted(fields)
             table = [ split_date(date) + (zip(sfields, dicttable[date]),) for date in dates ] 
-            values['index'] = index
-            values['report'] = report
             values['table'] = table
             values['dates'] =  map(split_date, dates)
             values['fields'] = fields
         except ReportException as e:
             values['error'] = "Report extraction failed for %s: %s" % (cik, e)
+        except Exception as e:
+            values['error'] = "Exception: %s" % e
+    return render(request, 'pysec/report.xml', values, content_type='application/xml')
+
+
+def report_common(report, quarter, cik):
+    """
+    Does the database lookup and download for report_html and report_xml.
+    Returns a dict of values which both reports use, and an Index object
+    if everything went well.  The values dict should have an 'error' str
+    if something broke.
+
+    Args:
+        report (Str): the name of the report
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        index, values: Index, dict
+ 
+    """
+    form = report_form(report)
+    values = { 'report': report, 'cik': cik, 'quarter': quarter, 'form': form }
+    y, q = quarter_split(quarter)
+    values['y'] = y
+    values['q'] = q
+    index = None
+    try:
+        index = Index.objects.get(cik=cik, quarter=quarter, form=form)
+        values['index'] = index
+        values['company'] = index.name
+        values['xbrl_link'] = index.xbrl_link()
+        values['html_link'] = index.html_link()
+        values['index_link'] = index.index_link()
     except Exception as e:
         values['error'] = "Index lookup error for %s/%s/%s: %s" % (quarter, form, cik, e)
-    return render(request, 'pysec/report.xml', values, content_type='application/xml')
+    return index, values
 
 
 

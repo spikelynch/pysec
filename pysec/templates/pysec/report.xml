@@ -3,6 +3,12 @@
   {% if error %}
   <error>{{ error }}</error>
   {% endif %}
+
+  {% if index_link %}<source id="index" href="{{ index_link }}" />{% endif %}
+  {% if html_link %}<source id="html" href="{{ html_link }}" />{% endif %}
+  {% if xbrl_link %}<source id="xbrl" href="{{ xbrl_link }}" />{% endif %}
+
+
   {% for startdate, enddate, row in table %}
   <period start="{{ startdate }}" end="{{ enddate }}">
     {% for field, value in row  %}
