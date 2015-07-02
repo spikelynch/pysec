@@ -25,11 +25,11 @@ REPORT_URL = PYSEC_URL + 'report/%s/%s/%s.xml'
 
 STD_COLUMNS =  [ 'Year', 'Quarter', 'Source', 'Error', 'CIK', 'Name', 'Start', 'End' ]
 
-QUARTERS = [ '20124' ]
+QUARTERS = [ '20121', '20122', '20123', '20124', '20131', '20132', '20133', '20134' ]
 
 MAXCOMPANIES = 100
 
-
+OUTCSV = './test100.csv';
 
 
 
@@ -58,7 +58,6 @@ def get_index(report, quarter):
 
 
 def best_source(sources):
-    print sources
     if "xbrl" in sources:
         return sources["xbrl"]
     if "index" in sources:
@@ -116,9 +115,8 @@ def get_report(report, quarter, cik):
     
 
 RPT = 'tax'
-output_file = './test.csv'
+output_file = OUTCSV
 
-MAX = 4
 
 columns =  STD_COLUMNS + report_fields(RPT)
 
@@ -159,7 +157,7 @@ with open(output_file, 'w') as csvfile:
                         writer.writerow(row)
                 i += 1
                 print "i = %d" % i
-                if i == MAX:
+                if i == MAXCOMPANIES:
                     print "Reached maximum of %d records: quitting" % i
                     break
 
