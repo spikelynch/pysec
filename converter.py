@@ -23,7 +23,7 @@ logger = logging.getLogger('pysec.converter')
 INDEX_URL  = PYSEC_URL + 'reports/%s/%s.xml'
 REPORT_URL = PYSEC_URL + 'report/%s/%s/%s.xml'
 
-
+STD_COLUMNS = [ 'Year', 'Quarter', 'Source', 'Error', 'CIK', 'Name', 'Dates' ]
 
 QUARTERS = [ '20124' ]
 
@@ -57,6 +57,16 @@ def get_index(report, quarter):
         raise
 
 
+def best_source(sources):
+    if "xbrl" in sources:
+        return sources["xbrl"]
+    if "index" in sources:
+        return sources["index"]
+    if "html" in sources:
+        return sources["html"]
+    return "Not found"
+
+
 def get_report(report, quarter, cik):
     """
     Loads and parses a table of facts for a report/quarter/company.  Returns
@@ -68,10 +78,12 @@ def get_report(report, quarter, cik):
         cik (Str): CIK (company ID)
     
     Returns:
+        a 2-tuple of values, error:
         [
             ( STARTDATE, ENDDATE, { dict by field } ),
             ( STARTDATE2, ENDDATE2, { dict by field } )
-        ]
+        ],
+        error (Str)
     """
     
     url = REPORT_URL % ( report, quarter, cik )
@@ -80,17 +92,25 @@ def get_report(report, quarter, cik):
     start = None
     end = None
     values = []
-    row = {}
+    sources = {}
+    error = None
     for event, elt in etree.iterparse(sio, events=("end",)):
         if elt.tag == "period":
             start = elt.get("start")
             end = elt.get("end")
+            row["source"] = best_source(sources)
             values.append((start, end, row))
+            sources = {}
+            row = {}
         elif elt.tag == "value":
             v = elt.get("id")
             row[v] = elt.text
+        elif elt.tag == "source":
+            sources[elt.get("id")] = elt.get("href")
+        elif elt.tag == "error":
+            error = elt.text
 
-    return values
+    return values, error
     
 
 RPT = 'tax'
@@ -98,7 +118,7 @@ output_file = './test.csv'
 
 MAX = 4
 
-columns = [ 'Year', 'Quarter', 'CIK', 'Name', 'Dates' ] + report_fields(RPT)
+columns =  + report_fields(RPT)
 
 # CSV output as follows:
 #
@@ -116,15 +136,23 @@ with open(output_file, 'w') as csvfile:
         if index:
             for cik in index:
                 logger.info("[%s] %s" % ( cik, index[cik]["name"] ))
-                rows = get_report(RPT, quarter, cik)
-                for start, end, row in rows:
+                rows, error = get_report(RPT, quarter, cik)
+                if error:
                     row['Year'] = y
                     row['Quarter'] = q
                     row['CIK' ] = cik
                     row['Name'] = index[cik]["name"]
-                    row['Start'] = start
-                    row['End'] = end
-                    writer.writerow(row)
+                    row['Error'] = error
+                    writer.writerrow(row)
+                else:
+                    for start, end, row in rows:
+                        row['Year'] = y
+                        row['Quarter'] = q
+                        row['CIK' ] = cik
+                        row['Name'] = index[cik]["name"]
+                        row['Start'] = start
+                        row['End'] = end
+                        writer.writerow(row)
         if i > MAX:
             logger.info("Reached maximum of %d records: quitting" % i)
             break
