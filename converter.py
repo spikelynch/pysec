@@ -27,9 +27,9 @@ STD_COLUMNS =  [ 'Year', 'Quarter', 'Source', 'Error', 'CIK', 'Name', 'Start', '
 
 QUARTERS = [ '20121', '20122', '20123', '20124', '20131', '20132', '20133', '20134' ]
 
-MAXCOMPANIES = 100
+MAXCOMPANIES = 10
 
-OUTCSV = './test100.csv';
+OUTCSV = './test10.csv';
 
 
 

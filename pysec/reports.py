@@ -14,7 +14,6 @@ import re
 import logging
 
 
-logger = logging.getLogger(__name__)
 
 
 XBRL_NS = "http://www.xbrl.org/2003/instance"
@@ -69,7 +68,8 @@ def report_form(report):
     if report in REPORTFORMS:
         return REPORTFORMS[report]
     else:
-        raise ReportException("No report %s" % report)
+        return '10-k'
+        #raise ReportException("No report %s" % report)
     
 def extract_report(index, report, axis):
     """
@@ -150,6 +150,76 @@ def extract_report(index, report, axis):
             
     return cdates, table
 
+def extract_entire_report(index, axis):
+    """
+    Variant on extract_report which gets all elements in the us-gaap
+    namespace
+    
+    Args:
+        index (Index): the index of this report from the database
+        axis (Str): orientation of the returned table.  If 'fields', each
+            the table is keyed by fields, otherwise by dates.
+
+    Returns:
+        a tuple of headers, table
+        where headers = [ sorted list of column fields ]
+              table = { key: [ v1, v2, v3, v4 ... ] }
+        The values v1, v2, v3 are sorted in the same order as the column fields
+
+    Ordering the rows is left up to the template
+
+    """
+    index.download()
+    xbrl = index.xbrl()
+    if not xbrl:
+        raise ReportException("XBRL parse failed")
+    valdict = {}
+    dates = get_dates(xbrl)
+    idates = {}
+
+#    factelts = xbrl.getNodeList("//*[namespace-uri()='%s']" % USGAAP_NS)
+    factelts = xbrl.getNodeList("//us-gaap:*")
+
+    # Loop through all <tag> elements, get dates from contextRefs and
+    # store all the results in valdict
+    for factelt in factelts:
+        tag = re.sub(r'^\{.*\}', '', factelt.tag)
+        contextref = factelt.get('contextRef')
+        value = factelt.text
+        if contextref in dates:
+            date = dates[contextref]
+        else:
+            date = '-'
+        if not date in idates:
+            idates[date] = 1
+        if not tag in valdict:
+            valdict[tag] = {}
+        if not date in valdict[tag]:
+            logging.warn("Duplicate value of %s for %s" % ( tag, date ))
+        valdict[tag][date] = value
+
+    # date ranges are now ';' separated
+    cdates = sorted(idates.keys())
+    tags = sorted(valdict.keys())
+
+    # now generate a matrix of all dates x all fields, where empty cells
+    # have None
+
+    table = {}
+    if axis == 'dates':
+        # rows are fields, columns are dates
+        for tag, vals in valdict.items():
+            table[tag] = [ vals.get(date, None) for date in cdates ]
+    else:
+        # rows are dates, columns are fields
+        for date in cdates:
+            table[date] = [ valdict[tag].get(date, None) for tag in tags ]
+            
+    return cdates, tags, table
+
+
+
+
 def get_dates(xbrl):
     """
     Reads all of the <context> items from an XBRL document and returns
@@ -162,7 +232,7 @@ def get_dates(xbrl):
         { Str: [ Str ] } - a dict by ID to an array of date strings
     """
 
-    if xbrl.oInstance:
+    if xbrl.oInstance is not None:
         contexts = [ el for el in xbrl.oInstance.iter("{%s}context" % XBRL_NS) ]
         dates    = {}
         dre = re.compile('[0-9]+-[0-9]+-[0-9]')

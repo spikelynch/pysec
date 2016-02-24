@@ -13,12 +13,13 @@ from django.template import Context
 from django.shortcuts import render
 
 import logging
+import sys, traceback
 
 from pysec.models import Index
 
 from lxml.html.soupparser import unescape
 
-from pysec.reports import extract_report, report_fields, report_form, ReportException
+from pysec.reports import extract_report, extract_entire_report, report_fields, report_form, ReportException
 from pysec.utils import quarter_split
 
 #TAXRECELT = 'us-gaap:ScheduleOfEffectiveIncomeTaxRateReconciliationTableTextBlock'
@@ -187,6 +188,109 @@ def report_xml(request, report, quarter, cik):
         except Exception as e:
             values['error'] = "Exception: %s" % e
     return render(request, 'pysec/report.xml', values, content_type='application/xml')
+
+
+def report_xml(request, report, quarter, cik):
+    """
+    Returns an XML version of a single report
+
+    Args:
+        request (HTTPResquest): the Django request
+        report (Str): the name of the report
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        Httpresponse
+ 
+    """
+    index, values = report_common(report, quarter, cik)
+    fields = report_fields(report)
+    if index:
+        try:
+            dates, dicttable = extract_report(index, report, 'fields')
+            # Note: zipping in fields so that they are available in
+            # the template at the element level
+            sfields = sorted(fields)
+            table = [ split_date(date) + (zip(sfields, dicttable[date]),) for date in dates ] 
+            values['table'] = table
+            values['dates'] =  map(split_date, dates)
+            values['fields'] = fields
+        except ReportException as e:
+            values['error'] = "Report extraction failed for %s: %s" % (cik, e)
+        except Exception as e:
+            values['error'] = "Exception: %s" % e
+    return render(request, 'pysec/report.xml', values, content_type='application/xml')
+
+
+def report_xml(request, report, quarter, cik):
+    """
+    Returns an XML version of a single report
+
+    Args:
+        request (HTTPResquest): the Django request
+        report (Str): the name of the report
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        Httpresponse
+ 
+    """
+    index, values = report_common(report, quarter, cik)
+    fields = report_fields(report)
+    if index:
+        try:
+            dates, dicttable = extract_report(index, report, 'fields')
+            # Note: zipping in fields so that they are available in
+            # the template at the element level
+            sfields = sorted(fields)
+            table = [ split_date(date) + (zip(sfields, dicttable[date]),) for date in dates ] 
+            values['table'] = table
+            values['dates'] =  map(split_date, dates)
+            values['fields'] = fields
+        except ReportException as e:
+            values['error'] = "Report extraction failed for %s: %s" % (cik, e)
+        except Exception as e:
+            values['error'] = "Exception: %s" % e
+    return render(request, 'pysec/report.xml', values, content_type='application/xml')
+
+def report_all_xml(request, quarter, cik):
+    """
+    Returns an XML version of all the GAAP tags in a report
+
+    Args:
+        request (HTTPResquest): the Django request
+        cik (Str): the company's cik number
+        quarter (Str): the quarter as YYYYQ
+
+    Return:
+        Httpresponse
+ 
+    """
+    index, values = report_common('ALL', quarter, cik)
+    if index:
+        try:
+            dates, fields, dicttable = extract_entire_report(index, 'fields')
+            # Note: zipping in fields so that they are available in
+            # the template at the element level
+            sfields = sorted(fields)
+            table = [ split_date(date) + (zip(sfields, dicttable[date]),) for date in dates ] 
+            values['table'] = table
+            values['dates'] =  map(split_date, dates)
+            values['fields'] = fields
+        except ReportException as e:
+            values['error'] = "Report extraction failed for %s: %s" % (cik, e)
+        except Exception as e:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            tb = repr(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            logging.error("Got uncaught exception: %s" % e)
+            logging.error(type(e))
+            logging.error(e.args)
+            #values['error'] = "%s: %s" % (type(e), e)
+            values['error'] = tb
+    return render(request, 'pysec/report.xml', values, content_type='application/xml')
+
 
 
 def report_common(report, quarter, cik):
